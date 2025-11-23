@@ -2,40 +2,55 @@ package handler
 
 import (
 	"net/http"
+	"strings"
 
 	"qa-service/internal/repository"
 )
 
-type Handler struct {
-	questionRepo repository.QuestionRepository
-	answerRepo   repository.AnswerRepository
-}
+func SetupRoutes(mux *http.ServeMux, qr repository.QuestionRepository, ar repository.AnswerRepository) {
+	h := NewHandler(qr, ar)
 
-func NewHandler(qr repository.QuestionRepository, ar repository.AnswerRepository) *Handler {
-	return &Handler{
-		questionRepo: qr,
-		answerRepo:   ar,
-	}
-}
+	mux.HandleFunc("/questions/", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			if r.URL.Path == "/questions" || r.URL.Path == "/questions/" {
+				h.ListQuestions(w, r)
+				return
+			}
+			h.GetQuestion(w, r)
+		case http.MethodPost:
+			if r.URL.Path == "/questions" || r.URL.Path == "/questions/" {
+				h.CreateQuestion(w, r)
+				return
+			}
+			if strings.HasSuffix(r.URL.Path, "/answers") || strings.HasSuffix(r.URL.Path, "/answers/") {
+				h.CreateAnswer(w, r)
+				return
+			}
+			http.NotFound(w, r)
+		case http.MethodDelete:
+			h.DeleteQuestion(w, r)
+		default:
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
 
-func SetupRoutes(mux *http.ServeMux, questionRepo repository.QuestionRepository, answerRepo repository.AnswerRepository) {
-	h := NewHandler(questionRepo, answerRepo)
+	mux.HandleFunc("/answers/", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			h.GetAnswer(w, r)
+		case http.MethodDelete:
+			h.DeleteAnswer(w, r)
+		default:
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
 
-	mux.HandleFunc("GET /questions/", h.ListQuestions)
-	mux.HandleFunc("POST /questions/", h.CreateQuestion)
-	mux.HandleFunc("GET /questions/{id}", h.GetQuestion)
-	mux.HandleFunc("DELETE /questions/{id}", h.DeleteQuestion)
-
-	mux.HandleFunc("POST /questions/{id}/answers/", h.CreateAnswer)
-	mux.HandleFunc("GET /answers/{id}", h.GetAnswer)
-	mux.HandleFunc("DELETE /answers/{id}", h.DeleteAnswer)
-
-	// заглушка на корень
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
 			http.NotFound(w, r)
 			return
 		}
-		w.Write([]byte("QA Service API is running!"))
+		w.Write([]byte("QA Service API — ready!\n"))
 	})
 }
