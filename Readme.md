@@ -27,7 +27,7 @@ git clone https://github.com/del1x/test-api-qa.git
 cd test-api-qa
 ```
 2. Постройте и запустите контейнеры через Docker Compose:
-3. 
+   
 ```bash
 docker compose up --build
 ```
